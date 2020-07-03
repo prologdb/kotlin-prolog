@@ -1,6 +1,7 @@
 :- use_module(library(equality)).
 :- use_module(library(dynamics)).
 :- use_module(library(typesafety)).
+:- use_module(library(lists)).
 
 testPred(X, Y) :- X = abc, Y = def.
 
@@ -66,4 +67,14 @@ test "term_variables/2 with no variables" by [
 ].
 test "term_variables/2" by [
     term_variables(a(Z, 2, [Y, 1|X], {f:W}), [Z, Y, X, W])
+].
+
+test "distinct/1" by [
+    findall(M, distinct(member(M, [1, 2, 1, 1, 3, 1, 2, 1, 2, 3, 1, 2])), Ms),
+    Ms = [1, 2, 3]
+].
+
+test "distinct/2" by [
+    findall(A-B, distinct(A, member(A-B, [1-2, 1-3, 2-1, 5-2])), List),
+    List = [1-2, 2-1, 5-2]
 ].

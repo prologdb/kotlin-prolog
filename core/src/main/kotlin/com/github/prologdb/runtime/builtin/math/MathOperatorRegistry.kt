@@ -1,9 +1,11 @@
 package com.github.prologdb.runtime.builtin.math
 
+import com.github.prologdb.runtime.PrologRuntimeEnvironment
 import com.github.prologdb.runtime.PrologRuntimeException
 import com.github.prologdb.runtime.term.CompoundTerm
 import com.github.prologdb.runtime.term.PrologNumber
 import com.github.prologdb.runtime.util.ArityMap
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Takes an arithmetic compound term (e.g. +(1,2) or mod(23,4)) and returns the calculated value
@@ -11,8 +13,8 @@ import com.github.prologdb.runtime.util.ArityMap
 typealias Calculator = (CompoundTerm) -> PrologNumber
 
 /**
- * Keeps track of ways to evaluate mathematical compounds. This is global; registring a new calculator
- * will affect all prolog runtimes.
+ * Keeps track of ways to evaluate mathematical compounds. This is global; registering a new calculator
+ * will affect all [PrologRuntimeEnvironment]s
  *
  * **This is not an [com.github.prologdb.runtime.util.OperatorRegistry]!**
  */
@@ -20,20 +22,14 @@ object MathOperatorRegistry {
     /**
      * Maps operator names to calculators
      */
-    private val calculators: MutableMap<String, ArityMap<Calculator>> = mutableMapOf()
+    private val calculators: MutableMap<String, ArityMap<Calculator>> = ConcurrentHashMap()
 
     fun registerOperator(operatorName: String, arities: IntRange, calculator: Calculator) {
         if (arities.first <= 0) {
             throw IllegalArgumentException("Cannot register an arithmetic operator with arity less than 1")
         }
 
-        val arityMap: ArityMap<Calculator>
-        if (operatorName in calculators) {
-            arityMap = calculators[operatorName]!!
-        } else {
-            arityMap = ArityMap()
-            calculators[operatorName] = arityMap
-        }
+        val arityMap = calculators.computeIfAbsent(operatorName) { ArityMap() }
 
         for (arity in arities) {
             arityMap[arity] = calculator

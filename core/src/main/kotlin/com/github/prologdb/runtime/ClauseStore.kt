@@ -128,7 +128,7 @@ class SimpleClauseStore(givenEntries: Iterable<Clause> = emptyList()) : MutableC
                         return@fromGenerator headUnification
                     }
                 } else {
-                    throw PrologRuntimeException("Cannot test whether to retract an entry: is neither a fact nor a rule")
+                    throw PrologInternalError("Cannot test whether to retract an entry: is neither a fact nor a rule")
                 }
             }
 
@@ -235,7 +235,7 @@ class DoublyIndexedClauseStore : MutableClauseStore {
                         return@fromGenerator headUnification
                     }
                 } else {
-                    throw PrologRuntimeException("Cannot determine whether entry should be retracted: is neither a fact nor a rule.")
+                    throw PrologInternalError("Cannot determine whether entry should be retracted: is neither a fact nor a rule.")
                 }
             }
 

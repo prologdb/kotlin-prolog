@@ -2,31 +2,33 @@ package com.github.prologdb.runtime.builtin.dicts
 
 import com.github.prologdb.async.LazySequence
 import com.github.prologdb.async.mapRemainingNotNull
-import com.github.prologdb.runtime.PrologRuntimeException
+import com.github.prologdb.runtime.ArgumentNotInstantiatedError
+import com.github.prologdb.runtime.ArgumentTypeError
 import com.github.prologdb.runtime.builtin.nativeRule
 import com.github.prologdb.runtime.term.Atom
 import com.github.prologdb.runtime.term.PrologDictionary
 import com.github.prologdb.runtime.term.Variable
 
-val BuiltinGetDict3 = nativeRule("get_dict", 3) { args, ctxt ->
-    val keyArg = args[0]
-    val dictArg = args[1]
-    val valueArg = args[2]
+val BuiltinGetDict3 = nativeRule("get_dict", 3) {
+    { args, ctxt ->
+        val keyArg = args[0]
+        val dictArg = args[1]
+        val valueArg = args[2]
 
-    if (keyArg !is Atom && keyArg !is Variable) {
-        throw PrologRuntimeException("Type error: argument 1 to get_dict/3 must be an atom or unbound")
-    }
+        if (keyArg !is Atom && keyArg !is Variable) {
+            throw ArgumentTypeError(fqIndicator, 0, keyArg, "atom", "unbound")
+        }
 
-    if (dictArg !is PrologDictionary) {
-        if (dictArg is Variable) {
-            throw PrologRuntimeException("Argument 2 to get_dict/3 is not sufficiently instantiated")
+        if (dictArg !is PrologDictionary) {
+            if (dictArg is Variable) {
+                throw ArgumentNotInstantiatedError(fqIndicator, 1, "dict")
         } else {
-            throw PrologRuntimeException("Type error: argument 2 to get_dict/3 must be a dict, ${dictArg.prologTypeName} given")
+                throw ArgumentTypeError(fqIndicator, 1, dictArg, "dict")
         }
     }
 
     if (keyArg is Variable) {
-        return@nativeRule yieldAllFinal(LazySequence.ofIterable(dictArg.pairs.entries, principal).mapRemainingNotNull { (dictKey, dictValue) ->
+        yieldAllFinal(LazySequence.ofIterable(dictArg.pairs.entries, principal).mapRemainingNotNull { (dictKey, dictValue) ->
             val valueUnification = valueArg.unify(dictValue, ctxt.randomVariableScope)
             if (valueUnification != null) {
                 if (valueUnification.variableValues.isInstantiated(keyArg)) {
@@ -45,10 +47,11 @@ val BuiltinGetDict3 = nativeRule("get_dict", 3) { args, ctxt ->
         keyArg as Atom
         val valueForArg = dictArg.pairs[keyArg]
 
-        return@nativeRule if (valueForArg != null) {
+        if (valueForArg != null) {
             valueArg.unify(valueForArg, ctxt.randomVariableScope)
         } else {
             null
         }
+    }
     }
 }

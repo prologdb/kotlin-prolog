@@ -43,7 +43,7 @@ class RandomVariableScope {
     fun createNewRandomVariable(): Variable {
         val localCounter = ++counter
         if (localCounter == Long.MAX_VALUE) {
-            throw PrologRuntimeException("Out of random variables")
+            throw PrologInternalError("Out of random variables (reached $localCounter random variables in one proof search).")
         }
 
         if (localCounter >= Integer.MAX_VALUE.toLong()) {

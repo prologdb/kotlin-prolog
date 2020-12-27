@@ -3,8 +3,9 @@ package com.github.prologdb.runtime.builtin
 import com.github.prologdb.async.Principal
 import com.github.prologdb.runtime.Clause
 import com.github.prologdb.runtime.ClauseIndicator
+import com.github.prologdb.runtime.FullyQualifiedClauseIndicator
 import com.github.prologdb.runtime.PrologException
-import com.github.prologdb.runtime.PrologRuntimeException
+import com.github.prologdb.runtime.PrologInternalError
 import com.github.prologdb.runtime.RandomVariableScope
 import com.github.prologdb.runtime.exception.PrologStackTraceElement
 import com.github.prologdb.runtime.module.Module
@@ -51,7 +52,11 @@ private val builtinArgumentVariables = arrayOf(
  */
 private val nativeCodeQuery = PredicateInvocationQuery(CompoundTerm("__nativeCode", emptyArray()))
 
-class NativeCodeRule(name: String, arity: Int, definedAt: StackTraceElement, code: PrologCallableFulfill) : Rule(
+data class NativeImplementationInfo(
+    val fqIndicator: FullyQualifiedClauseIndicator
+)
+
+class NativeCodeRule(name: String, arity: Int, definedAt: StackTraceElement, codeProvider: NativeImplementationInfo.() -> PrologCallableFulfill) : Rule(
     CompoundTerm(name, builtinArgumentVariables.sliceArray(0 until arity)),
     nativeCodeQuery
 ) {
@@ -65,7 +70,16 @@ class NativeCodeRule(name: String, arity: Int, definedAt: StackTraceElement, cod
         "$name/$arity native implementation (${definedAt.fileName}:${definedAt.lineNumber})"
     )
 
+    private val implementationInfo: NativeImplementationInfo
+        get() = NativeImplementationInfo(fqIndicator)
+
+    private lateinit var code: PrologCallableFulfill
+
     override val fulfill: PrologCallableFulfill = { arguments, context ->
+        if (!this@NativeCodeRule::code.isInitialized) {
+            code = codeProvider(implementationInfo)
+        }
+
         if (head.arity == arguments.size) {
             try {
                 code(this, arguments, context)
@@ -73,7 +87,7 @@ class NativeCodeRule(name: String, arity: Int, definedAt: StackTraceElement, cod
                 ex.addPrologStackFrame(builtinStackFrame)
                 throw ex
             } catch (ex: Throwable) {
-                val newEx = PrologRuntimeException(ex.message ?: "", ex)
+                val newEx = PrologInternalError(ex.message ?: "Exception unhandled in interpreter", ex)
                 newEx.addPrologStackFrame(builtinStackFrame)
 
                 throw newEx
@@ -82,15 +96,17 @@ class NativeCodeRule(name: String, arity: Int, definedAt: StackTraceElement, cod
     }
 
     override fun toString() = stringRepresentation
+
+    lateinit var fqIndicator: FullyQualifiedClauseIndicator
 }
 
-fun nativeRule(name: String, arity: Int, code: PrologCallableFulfill): NativeCodeRule {
+fun nativeRule(name: String, arity: Int, codeProvider: NativeImplementationInfo.() -> PrologCallableFulfill): NativeCodeRule {
     val definedAt = getInvocationStackFrame()
-    return NativeCodeRule(name, arity, definedAt, code)
+    return NativeCodeRule(name, arity, definedAt, codeProvider)
 }
 
-fun nativeRule(name: String, arity: Int, definedAt: StackTraceElement, code: PrologCallableFulfill): NativeCodeRule {
-    return NativeCodeRule(name, arity, definedAt, code)
+fun nativeRule(name: String, arity: Int, definedAt: StackTraceElement, codeProvider: NativeImplementationInfo.() -> PrologCallableFulfill): NativeCodeRule {
+    return NativeCodeRule(name, arity, definedAt, codeProvider)
 }
 
 fun nativeModule(name: String, initCode: NativeModuleBuilder.() -> Any?): Module = NativeModuleBuilder.build(name, initCode)
@@ -104,6 +120,9 @@ class NativeModuleBuilder(private val moduleName: String) {
 
     fun add(predicate: PrologCallable) {
         nativePredicates.add(predicate)
+        if (predicate is NativeCodeRule) {
+            predicate.fqIndicator = FullyQualifiedClauseIndicator(moduleName, ClauseIndicator.of(predicate))
+        }
     }
 
     fun add(clauses: List<Clause>) {

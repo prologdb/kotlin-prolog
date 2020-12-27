@@ -186,7 +186,7 @@ class ASTPrologPredicate(
 
     override val retract: suspend LazySequenceBuilder<Unification>.(CompoundTerm, ProofSearchContext) -> Unit = { matching, ctxt ->
         if (isSealed) {
-            throw PredicateNotDynamicException(indicator)
+            throw PredicateNotDynamicException(fqIndicator)
         }
 
         while (clauses.isNotEmpty()) {

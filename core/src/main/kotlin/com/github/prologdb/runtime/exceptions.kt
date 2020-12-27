@@ -1,7 +1,6 @@
 package com.github.prologdb.runtime
 
-import com.github.prologdb.runtime.module.Module
-import com.github.prologdb.runtime.term.CompoundTerm
+import com.github.prologdb.runtime.exception.PrologStackTraceElement
 
 /**
  * An exception related to, but not limited to, parsing and interpreting prolog programs.
@@ -24,18 +23,6 @@ open class PrologRuntimeException(message: String, cause: Throwable? = null) : P
 open class PredicateNotDynamicException(val indicator: FullyQualifiedClauseIndicator, cause: Throwable? = null) : PrologRuntimeException("Predicate $indicator is not dynamic", cause)
 
 open class PrologPermissionError(message: String, cause: Throwable? = null) : PrologRuntimeException(message, cause)
-
-data class PrologStackTraceElement @JvmOverloads constructor(
-    val goal: CompoundTerm,
-    val sourceInformation: PrologSourceInformation,
-    val module: Module? = null,
-    val toStringOverride: String? = null
-){
-    override fun toString() = toStringOverride ?: run {
-        val modulePrefix = if (module == null) "" else "module ${module.name}, "
-        "$goal   $modulePrefix${sourceInformation.sourceFileName}:${sourceInformation.sourceFileLine}"
-    }
-}
 
 /**
  * Runs the code; if it throws a [PrologException], amends the [PrologException.stackTrace] with

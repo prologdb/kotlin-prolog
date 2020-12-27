@@ -23,17 +23,3 @@ open class PrologRuntimeException(message: String, cause: Throwable? = null) : P
 open class PredicateNotDynamicException(val indicator: FullyQualifiedClauseIndicator, cause: Throwable? = null) : PrologRuntimeException("Predicate $indicator is not dynamic", cause)
 
 open class PrologPermissionError(message: String, cause: Throwable? = null) : PrologRuntimeException(message, cause)
-
-/**
- * Runs the code; if it throws a [PrologException], amends the [PrologException.stackTrace] with
- * the given [PrologStackTraceElement].
- */
-inline fun <T> prologTry(crossinline onErrorStackTraceElement: () -> PrologStackTraceElement, code: () -> T): T {
-    try {
-        return code()
-    }
-    catch (ex: PrologException) {
-        ex.addPrologStackFrame(onErrorStackTraceElement())
-        throw ex
-    }
-}
